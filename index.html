@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f5f4a">
+<title>Dörrknack</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{
+  --bg:#eef1ee;
+  --surface:#ffffff;
+  --ink:#16211d;
+  --muted:#5d6b65;
+  --line:#d5dcd8;
+  --accent:#1f5f4a;
+  --accent-ink:#ffffff;
+  --good:#1d7a4c;
+  --good-soft:#dcefe3;
+  --bad:#b23a2e;
+  --bad-soft:#f6dfdb;
+  --offer:#8a5a00;
+  --offer-soft:#f7ead0;
+  --shadow:0 1px 0 rgba(22,33,29,.06),0 6px 18px -10px rgba(22,33,29,.25);
+  --tile-filter:none;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#101614;
+    --surface:#18211e;
+    --ink:#e7eeea;
+    --muted:#95a39c;
+    --line:#2a3632;
+    --accent:#4fb28d;
+    --accent-ink:#0b1310;
+    --good:#5cc98f;
+    --good-soft:#1c3328;
+    --bad:#ef7a6c;
+    --bad-soft:#3a211e;
+    --offer:#e9b54f;
+    --offer-soft:#352a14;
+    --shadow:0 1px 0 rgba(0,0,0,.3),0 6px 18px -10px rgba(0,0,0,.6);
+    --tile-filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.9);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#101614;
+  --surface:#18211e;
+  --ink:#e7eeea;
+  --muted:#95a39c;
+  --line:#2a3632;
+  --accent:#4fb28d;
+  --accent-ink:#0b1310;
+  --good:#5cc98f;
+  --good-soft:#1c3328;
+  --bad:#ef7a6c;
+  --bad-soft:#3a211e;
+  --offer:#e9b54f;
+  --offer-soft:#352a14;
+  --shadow:0 1px 0 rgba(0,0,0,.3),0 6px 18px -10px rgba(0,0,0,.6);
+    --tile-filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.9);
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg);color:var(--ink);
+  font:16px/1.45 "Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  padding-inline:16px;padding-block:14px 40px;
+  -webkit-tap-highlight-color:transparent;
+}
+.wrap{max-width:520px;margin:0 auto;display:grid;gap:18px}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+h1{font:800 30px/1 "Barlow Condensed",system-ui,sans-serif;letter-spacing:.01em;margin:0;text-transform:uppercase}
+.date{color:var(--muted);font-size:14px;text-align:right}
+.sync{display:block;font-size:12px}
+.label{font:600 12px/1 "Barlow",system-ui,sans-serif;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
+
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+
+.knock{
+  width:100%;display:flex;align-items:center;justify-content:space-between;gap:16px;
+  background:var(--accent);color:var(--accent-ink);
+  border-radius:20px;padding:22px 24px;box-shadow:var(--shadow);
+  transition:transform .08s ease;
+}
+.knock:active{transform:scale(.98)}
+.knock .t{font:800 34px/1 "Barlow Condensed",system-ui,sans-serif;text-transform:uppercase;letter-spacing:.02em;text-align:left}
+.knock .t small{display:block;font:500 14px/1.3 "Barlow",system-ui,sans-serif;text-transform:none;letter-spacing:0;opacity:.85;margin-top:6px}
+.knock .n{font:800 64px/1 "Barlow Condensed",system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.knock.bump .n{animation:bump .35s ease}
+@keyframes bump{40%{transform:scale(1.25)}}
+
+.current{display:grid;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px}
+.current-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.current-head strong{font:700 20px/1 "Barlow Condensed",system-ui,sans-serif;text-transform:uppercase;letter-spacing:.03em}
+.current-head span{color:var(--muted);font-size:14px}
+.group{display:grid;gap:8px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.choice{
+  min-height:74px;border-radius:14px;border:2px solid var(--line);background:var(--bg);
+  font:700 20px/1.1 "Barlow Condensed",system-ui,sans-serif;text-transform:uppercase;letter-spacing:.03em;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:8px;
+  transition:background .12s,border-color .12s,transform .08s;
+}
+.choice:active{transform:scale(.97)}
+.choice .c{font:600 13px/1 "Barlow",system-ui,sans-serif;text-transform:none;letter-spacing:0;color:var(--muted);font-variant-numeric:tabular-nums}
+.choice[data-k="offert"][aria-pressed="true"]{background:var(--offer-soft);border-color:var(--offer);color:var(--offer)}
+.choice[data-k="ej"][aria-pressed="true"],.choice[data-k="neg"][aria-pressed="true"]{background:var(--bad-soft);border-color:var(--bad);color:var(--bad)}
+.choice[data-k="pos"][aria-pressed="true"]{background:var(--good-soft);border-color:var(--good);color:var(--good)}
+.choice[aria-pressed="true"] .c{color:inherit}
+.hint{margin:0;color:var(--muted);font-size:14px}
+
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.stat{background:var(--surface);padding:12px 12px 14px;display:grid;gap:6px}
+.stat b{font:700 28px/1 "Barlow Condensed",system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.stat .label{font-size:11px}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;display:flex}
+.bar i{display:block;height:100%}
+
+section h2{font:700 20px/1 "Barlow Condensed",system-ui,sans-serif;text-transform:uppercase;letter-spacing:.03em;margin:0 0 10px}
+.log{list-style:none;margin:0;padding:0;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.log li{display:grid;grid-template-columns:auto auto 1fr auto;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid var(--line)}
+.log li:first-child{border-top:0}
+.log .no{font:700 16px/1 "Barlow Condensed",system-ui,sans-serif;color:var(--muted);font-variant-numeric:tabular-nums;min-width:2.2ch}
+.log time{font-variant-numeric:tabular-nums;font-size:14px;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:600 12px/1 "Barlow",system-ui,sans-serif;padding:5px 8px;border-radius:999px;background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+.chip.offert{background:var(--offer-soft);color:var(--offer);border-color:transparent}
+.chip.ej,.chip.neg{background:var(--bad-soft);color:var(--bad);border-color:transparent}
+.chip.pos{background:var(--good-soft);color:var(--good);border-color:transparent}
+.del{font-size:13px;color:var(--muted);padding:6px 8px;border-radius:8px}
+.del.armed{color:var(--bad);background:var(--bad-soft);font-weight:600}
+.empty{padding:16px;color:var(--muted);font-size:14px}
+.log li.sel{background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.log li button.pick{all:unset;cursor:pointer;display:contents}
+
+.hist{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+.hist-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.hist th,.hist td{padding:9px 10px;text-align:right;border-top:1px solid var(--line);white-space:nowrap}
+.hist th{font:600 11px/1 "Barlow",system-ui,sans-serif;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);border-top:0}
+.hist th:first-child,.hist td:first-child{text-align:left}
+.foot{color:var(--muted);font-size:13px;margin:0}
+.err{color:var(--bad);font-size:14px;margin:0}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.mapbox{display:grid;gap:10px}
+.map-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.map-head h2{margin:0}
+.gps{font-size:13px;color:var(--muted)}
+.gps.ok{color:var(--good)}
+.gps.bad{color:var(--bad)}
+#map{height:340px;border-radius:14px;border:1px solid var(--line);overflow:hidden;background:var(--surface);z-index:0}
+.leaflet-tile-pane{filter:var(--tile-filter)}
+.map-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 12px;font-weight:600;font-size:14px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{padding:9px 12px;font-size:14px;font-weight:600;background:var(--surface)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.legend{display:flex;gap:12px;font-size:13px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.pin{width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);display:grid;place-items:center}
+.pin span{transform:rotate(45deg);font:700 11px/1 "Barlow Condensed",system-ui,sans-serif;color:#fff}
+.pin.sel{outline:3px solid var(--ink);outline-offset:2px}
+.me{width:16px;height:16px;border-radius:50%;background:#2a7de1;border:3px solid #fff;box-shadow:0 0 0 6px rgba(42,125,225,.25)}
+.leaflet-popup-content{font:14px/1.4 "Barlow",system-ui,sans-serif}
+.foot-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+
+body{margin:0;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(40px,env(safe-area-inset-bottom))}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header>
+    <h1>Dörrknack</h1>
+    <div class="date"><span id="today"></span><span class="sync" id="sync">Sparas i telefonen</span></div>
+  </header>
+
+  <button class="knock" id="knock" type="button" aria-label="Knacka dörr, lägg till en dörr">
+    <span class="t">Knacka dörr<small>Tryck vid varje ny dörr</small></span>
+    <span class="n" id="knockN">0</span>
+  </button>
+
+  <div class="current" id="current">
+    <div class="current-head"><strong id="curTitle">Ingen dörr än</strong><span id="curTime"></span></div>
+    <div class="group">
+      <span class="label">Utfall</span>
+      <div class="pair">
+        <button class="choice" type="button" data-f="outcome" data-k="offert" aria-pressed="false">Offert<span class="c" id="c-offert">0</span></button>
+        <button class="choice" type="button" data-f="outcome" data-k="ej" aria-pressed="false">Inte intresserad<span class="c" id="c-ej">0</span></button>
+      </div>
+    </div>
+    <div class="group">
+      <span class="label">Kundbemötande</span>
+      <div class="pair">
+        <button class="choice" type="button" data-f="mood" data-k="pos" aria-pressed="false">Positiv kund<span class="c" id="c-pos">0</span></button>
+        <button class="choice" type="button" data-f="mood" data-k="neg" aria-pressed="false">Negativ kund<span class="c" id="c-neg">0</span></button>
+      </div>
+    </div>
+    <p class="hint" id="hint">Knackningen registreras direkt. Välj sedan utfall och bemötande för dörren. Tryck igen på ett val för att ta bort det.</p>
+    <p class="err" id="err" hidden></p>
+  </div>
+
+  <section class="mapbox">
+    <div class="map-head"><h2>Karta</h2><span class="gps" id="gps">Söker din position …</span></div>
+    <div id="map" role="application" aria-label="Karta med dina dörrar"></div>
+    <div class="map-actions">
+      <button class="btn" type="button" id="center">Visa min plats</button>
+      <div class="seg" role="group" aria-label="Vilka dagar som visas">
+        <button type="button" id="v-today" aria-pressed="true">Idag</button>
+        <button type="button" id="v-all" aria-pressed="false">Alla dagar</button>
+      </div>
+    </div>
+    <div class="legend"><span><i style="background:var(--offer)"></i>Offert</span><span><i style="background:var(--bad)"></i>Inte intresserad</span></div>
+    <p class="hint">När du trycker Offert eller Inte intresserad sätts en pin där du står. Dra pinen, eller tryck på kartan, för att flytta den till rätt hus.</p>
+  </section>
+
+  <div class="stats" aria-label="Dagens siffror">
+    <div class="stat"><span class="label">Offertkvot</span><b id="s-rate">–</b><div class="bar"><i id="b-offer" style="background:var(--offer)"></i></div></div>
+    <div class="stat"><span class="label">Positiva</span><b id="s-pos">–</b><div class="bar"><i id="b-pos" style="background:var(--good)"></i><i id="b-neg" style="background:var(--bad)"></i></div></div>
+    <div class="stat"><span class="label">Utan utfall</span><b id="s-open">0</b><div class="bar"><i id="b-open" style="background:var(--muted)"></i></div></div>
+  </div>
+
+  <section>
+    <h2>Dagens dörrar</h2>
+    <ul class="log" id="log"></ul>
+  </section>
+
+  <section>
+    <h2>Tidigare dagar</h2>
+    <div class="hist-wrap">
+      <table class="hist">
+        <thead><tr><th>Dag</th><th>Dörrar</th><th>Offert</th><th>Ej int.</th><th>Pos</th><th>Neg</th><th>Kvot</th></tr></thead>
+        <tbody id="hist"></tbody>
+      </table>
+    </div>
+  </section>
+  <div class="foot-row"><button class="btn" type="button" id="export">Exportera CSV</button></div>
+  <p class="foot">Offertkvot = offerter delat med knackade dörrar. Positiva = andel positiva av de dörrar där du angett bemötande.</p>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var LS = "dorrknack.v1";
+  function dayKey(d){ d = d || new Date(); var p = function(n){ return String(n).padStart(2,"0"); }; return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate()); }
+  function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+  function hm(ts){ return new Date(ts).toLocaleTimeString("sv-SE",{hour:"2-digit",minute:"2-digit"}); }
+  function pct(a,b){ return b ? Math.round(a/b*100)+" %" : "–"; }
+
+  var key = dayKey();
+  var days = {};           // date -> {date, updatedAt, visits:[{id,t,outcome,mood,loc}]}
+  var selId = null;
+  var armed = null, armTimer = null;
+  var here = null;         // latest GPS fix {lat,lng,acc}
+  var showAll = false;
+
+  try { days = JSON.parse(localStorage.getItem(LS) || "{}") || {}; } catch(e){ days = {}; }
+  function today(){ if(!days[key]) days[key] = {date:key, visits:[]}; return days[key]; }
+  function counts(d){
+    var c = {n:d.visits.length, offert:0, ej:0, pos:0, neg:0};
+    d.visits.forEach(function(v){ if(v.outcome) c[v.outcome]++; if(v.mood) c[v.mood]++; });
+    return c;
+  }
+  function save(){
+    today().updatedAt = Date.now();
+    try { localStorage.setItem(LS, JSON.stringify(days)); $("sync").textContent = "Sparat i telefonen " + hm(Date.now()); $("err").hidden = true; }
+    catch(e){ $("err").hidden = false; $("err").textContent = "Kunde inte spara i telefonen. Kontrollera att webbläsaren inte är i privat läge."; }
+  }
+  function rollDay(){ var k = dayKey(); if(k !== key){ key = k; selId = null; } }
+
+  // ---------- Map ----------
+  var map = null, pinLayer = null, meMarker = null, meCircle = null, centered = false;
+  var PIN = {offert:"var(--offer)", ej:"var(--bad)"};
+  if(window.L){
+    map = L.map("map", {zoomControl:true, attributionControl:true}).setView([59.3293, 18.0686], 12);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom:19, subdomains:"abc",
+      attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+    pinLayer = L.layerGroup().addTo(map);
+    map.on("click", function(e){
+      var v = selected();
+      if(!v || !v.outcome) return;
+      v.loc = {lat:e.latlng.lat, lng:e.latlng.lng, acc:0, manual:true};
+      save(); render();
+    });
+  } else {
+    $("map").textContent = "Kartan kunde inte laddas. Kontrollera internetanslutningen och ladda om sidan.";
+    $("map").style.padding = "16px";
+  }
+
+  function selected(){ return today().visits.find(function(x){ return x.id === selId; }) || null; }
+
+  function drawPins(){
+    if(!map) return;
+    pinLayer.clearLayers();
+    var keys = showAll ? Object.keys(days) : [key];
+    keys.forEach(function(k){
+      var d = days[k]; if(!d) return;
+      d.visits.forEach(function(v, i){
+        if(!v.outcome || !v.loc) return;
+        var isToday = k === key;
+        var icon = L.divIcon({
+          className:"",
+          html:'<div class="pin'+(isToday && v.id === selId ? " sel" : "")+'" style="background:'+PIN[v.outcome]+'"><span>'+(i+1)+'</span></div>',
+          iconSize:[26,26], iconAnchor:[13,26], popupAnchor:[0,-24]
+        });
+        var m = L.marker([v.loc.lat, v.loc.lng], {icon:icon, draggable:isToday, keyboard:true, title:"Dörr "+(i+1)});
+        var txt = document.createElement("div");
+        var dateLbl = isToday ? "" : new Date(k+"T12:00").toLocaleDateString("sv-SE",{day:"numeric",month:"short"})+" ";
+        txt.innerHTML = "<strong></strong><br><span></span>";
+        txt.querySelector("strong").textContent = "Dörr "+(i+1)+" · "+LBL[v.outcome];
+        txt.querySelector("span").textContent = dateLbl + hm(v.t) + (v.mood ? " · "+LBL[v.mood]+" kund" : "");
+        m.bindPopup(txt);
+        if(isToday){
+          m.on("click", function(){ selId = v.id; render(); });
+          m.on("dragend", function(e){ var p = e.target.getLatLng(); v.loc = {lat:p.lat, lng:p.lng, acc:0, manual:true}; selId = v.id; save(); render(); });
+        }
+        m.addTo(pinLayer);
+      });
+    });
+  }
+
+  function onFix(p){
+    here = {lat:p.coords.latitude, lng:p.coords.longitude, acc:Math.round(p.coords.accuracy)};
+    $("gps").className = "gps ok";
+    $("gps").textContent = "Position ±" + here.acc + " m";
+    if(!map) return;
+    var ll = [here.lat, here.lng];
+    if(!meMarker){
+      meCircle = L.circle(ll, {radius:here.acc, color:"#2a7de1", weight:1, fillOpacity:.08, interactive:false}).addTo(map);
+      meMarker = L.marker(ll, {icon:L.divIcon({className:"", html:'<div class="me"></div>', iconSize:[16,16], iconAnchor:[8,8]}), interactive:false, keyboard:false}).addTo(map);
+    } else { meMarker.setLatLng(ll); meCircle.setLatLng(ll).setRadius(here.acc); }
+    if(!centered){ centered = true; map.setView(ll, 17); }
+  }
+  function onGpsErr(e){
+    $("gps").className = "gps bad";
+    $("gps").textContent = e && e.code === 1
+      ? "Platsåtkomst nekad. Tillåt plats för sidan i webbläsarens inställningar."
+      : "Ingen position just nu. Pins hamnar mitt på kartan, dra dem rätt.";
+  }
+  if(navigator.geolocation){
+    navigator.geolocation.watchPosition(onFix, onGpsErr, {enableHighAccuracy:true, maximumAge:5000, timeout:20000});
+  } else onGpsErr();
+
+  $("center").addEventListener("click", function(){
+    if(!map) return;
+    if(here) map.setView([here.lat, here.lng], Math.max(map.getZoom(), 17));
+    else if(navigator.geolocation) navigator.geolocation.getCurrentPosition(function(p){ centered = false; onFix(p); }, onGpsErr, {enableHighAccuracy:true, timeout:15000});
+  });
+  function setView(all){
+    showAll = all;
+    $("v-today").setAttribute("aria-pressed", all ? "false" : "true");
+    $("v-all").setAttribute("aria-pressed", all ? "true" : "false");
+    drawPins();
+  }
+  $("v-today").addEventListener("click", function(){ setView(false); });
+  $("v-all").addEventListener("click", function(){ setView(true); });
+
+  function currentLoc(){
+    if(here) return {lat:here.lat, lng:here.lng, acc:here.acc};
+    if(map){ var c = map.getCenter(); return {lat:c.lat, lng:c.lng, acc:null, approx:true}; }
+    return null;
+  }
+
+  // ---------- Actions ----------
+  function knock(){
+    rollDay();
+    var v = {id:uid(), t:Date.now(), outcome:null, mood:null, loc:null};
+    today().visits.push(v);
+    selId = v.id;
+    var b = $("knock"); b.classList.remove("bump"); void b.offsetWidth; b.classList.add("bump");
+    if(navigator.vibrate) try{ navigator.vibrate(15); }catch(e){}
+    save(); render();
+  }
+
+  function choose(field, k){
+    rollDay();
+    var d = today();
+    var v = selected();
+    if(!v){
+      v = {id:uid(), t:Date.now(), outcome:null, mood:null, loc:null};
+      d.visits.push(v); selId = v.id;
+    }
+    v[field] = v[field] === k ? null : k;
+    if(field === "outcome" && v.outcome && !v.loc){
+      v.loc = currentLoc();
+      if(map && v.loc) map.panTo([v.loc.lat, v.loc.lng]);
+    }
+    save(); render();
+  }
+
+  function removeVisit(id){
+    var d = today();
+    d.visits = d.visits.filter(function(v){ return v.id !== id; });
+    if(selId === id){ var last = d.visits[d.visits.length-1]; selId = last ? last.id : null; }
+    save(); render();
+  }
+
+  $("export").addEventListener("click", function(){
+    var rows = [["datum","tid","dorr","utfall","bemotande","lat","lng"]];
+    Object.keys(days).sort().forEach(function(k){
+      days[k].visits.forEach(function(v,i){
+        rows.push([k, hm(v.t), i+1, v.outcome ? LBL[v.outcome] : "", v.mood ? LBL[v.mood] : "",
+          v.loc ? v.loc.lat.toFixed(6) : "", v.loc ? v.loc.lng.toFixed(6) : ""]);
+      });
+    });
+    var csv = "﻿" + rows.map(function(r){ return r.map(function(c){ c = String(c); return /[",;\n]/.test(c) ? '"'+c.replace(/"/g,'""')+'"' : c; }).join(";"); }).join("\n");
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8"}));
+    a.download = "dorrknack-" + key + ".csv";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
+  });
+
+  var LBL = {offert:"Offert", ej:"Inte intresserad", pos:"Positiv", neg:"Negativ"};
+
+  function render(){
+    var d = today(), c = counts(d);
+    $("today").textContent = new Date().toLocaleDateString("sv-SE",{weekday:"long", day:"numeric", month:"long"});
+    $("knockN").textContent = c.n;
+    ["offert","ej","pos","neg"].forEach(function(k){ $("c-"+k).textContent = c[k] + " idag"; });
+
+    var idx = d.visits.findIndex(function(v){ return v.id === selId; });
+    var v = idx >= 0 ? d.visits[idx] : null;
+    $("curTitle").textContent = v ? "Dörr " + (idx+1) : "Ingen dörr än";
+    $("curTime").textContent = v ? "knackad " + hm(v.t) : "";
+    document.querySelectorAll(".choice").forEach(function(b){
+      b.setAttribute("aria-pressed", v && v[b.dataset.f] === b.dataset.k ? "true" : "false");
+    });
+
+    var moods = c.pos + c.neg, open = d.visits.filter(function(x){ return !x.outcome; }).length;
+    $("s-rate").textContent = pct(c.offert, c.n);
+    $("s-pos").textContent = pct(c.pos, moods);
+    $("s-open").textContent = open;
+    $("b-offer").style.width = c.n ? (c.offert/c.n*100)+"%" : "0";
+    $("b-pos").style.width = moods ? (c.pos/moods*100)+"%" : "0";
+    $("b-neg").style.width = moods ? (c.neg/moods*100)+"%" : "0";
+    $("b-open").style.width = c.n ? (open/c.n*100)+"%" : "0";
+
+    var log = $("log"); log.textContent = "";
+    if(!d.visits.length){
+      var e = document.createElement("li"); e.className = "empty"; e.style.display = "block";
+      e.textContent = "Inga dörrar än idag. Tryck på Knacka dörr när du står vid första dörren.";
+      log.appendChild(e);
+    }
+    d.visits.map(function(x,i){ return [x,i]; }).reverse().forEach(function(p){
+      var x = p[0], i = p[1];
+      var li = document.createElement("li");
+      if(x.id === selId) li.className = "sel";
+      var no = document.createElement("span"); no.className = "no"; no.textContent = "#"+(i+1);
+      var tm = document.createElement("time"); tm.textContent = hm(x.t);
+      var ch = document.createElement("span"); ch.className = "chips";
+      [x.outcome, x.mood].forEach(function(k){ if(!k) return; var s = document.createElement("span"); s.className = "chip "+k; s.textContent = LBL[k]; ch.appendChild(s); });
+      if(!x.outcome && !x.mood){ var s = document.createElement("span"); s.className = "chip"; s.textContent = "Knackad"; ch.appendChild(s); }
+      [no,tm,ch].forEach(function(el){ el.style.cursor = "pointer"; el.addEventListener("click", function(){
+        selId = x.id; render();
+        if(map && x.loc && x.outcome) map.panTo([x.loc.lat, x.loc.lng]);
+        window.scrollTo({top:0, behavior:"smooth"});
+      }); });
+      var del = document.createElement("button"); del.type = "button"; del.className = "del" + (armed === x.id ? " armed" : "");
+      del.textContent = armed === x.id ? "Ta bort?" : "Ångra";
+      del.setAttribute("aria-label", armed === x.id ? "Bekräfta: ta bort dörr "+(i+1) : "Ta bort dörr "+(i+1));
+      del.addEventListener("click", function(){
+        if(armed === x.id){ armed = null; clearTimeout(armTimer); removeVisit(x.id); return; }
+        armed = x.id; clearTimeout(armTimer); armTimer = setTimeout(function(){ armed = null; render(); }, 3000); render();
+      });
+      li.append(no, tm, ch, del);
+      log.appendChild(li);
+    });
+
+    var tb = $("hist"); tb.textContent = "";
+    var past = Object.keys(days).filter(function(k){ return k !== key && days[k].visits && days[k].visits.length; }).sort().reverse().slice(0,30);
+    if(!past.length){
+      var tr = document.createElement("tr"); var td = document.createElement("td"); td.colSpan = 7; td.style.textAlign = "left"; td.style.color = "var(--muted)";
+      td.textContent = "Här visas dina tidigare säljdagar."; tr.appendChild(td); tb.appendChild(tr);
+    }
+    past.forEach(function(k){
+      var cc = counts(days[k]);
+      var tr = document.createElement("tr");
+      var label = new Date(k+"T12:00").toLocaleDateString("sv-SE",{weekday:"short", day:"numeric", month:"short"});
+      [label, cc.n, cc.offert, cc.ej, cc.pos, cc.neg, pct(cc.offert, cc.n)].forEach(function(val){ var td = document.createElement("td"); td.textContent = val; tr.appendChild(td); });
+      tb.appendChild(tr);
+    });
+
+    drawPins();
+  }
+
+  $("knock").addEventListener("click", knock);
+  document.querySelectorAll(".choice").forEach(function(b){ b.addEventListener("click", function(){ choose(b.dataset.f, b.dataset.k); }); });
+  document.addEventListener("visibilitychange", function(){ if(!document.hidden){ var k = key; rollDay(); if(k !== key) render(); } });
+
+  var t = today(); if(t.visits.length) selId = t.visits[t.visits.length-1].id;
+  render();
+})();
+</script>
+</body>
+</html>
