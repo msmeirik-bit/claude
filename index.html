@@ -72,7 +72,7 @@ body{
   padding-inline:16px;padding-block:14px 40px;
   -webkit-tap-highlight-color:transparent;
 }
-.wrap{max-width:520px;margin:0 auto;display:grid;gap:18px}
+.wrap{max-width:520px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr);gap:18px}
 header{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
 h1{font:800 30px/1 "Barlow Condensed",system-ui,sans-serif;letter-spacing:.01em;margin:0;text-transform:uppercase}
 .date{color:var(--muted);font-size:14px;text-align:right}
@@ -101,6 +101,9 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
 .current-head span{color:var(--muted);font-size:14px}
 .group{display:grid;gap:8px}
 .pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pair.three{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.pair.three .choice{font-size:17px;padding:8px 4px;overflow-wrap:anywhere;hyphens:auto}
+.pair > *{min-width:0}
 .choice{
   min-height:74px;border-radius:14px;border:2px solid var(--line);background:var(--bg);
   font:700 20px/1.1 "Barlow Condensed",system-ui,sans-serif;text-transform:uppercase;letter-spacing:.03em;
@@ -112,7 +115,21 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
 .choice[data-k="offert"][aria-pressed="true"]{background:var(--offer-soft);border-color:var(--offer);color:var(--offer)}
 .choice[data-k="ej"][aria-pressed="true"],.choice[data-k="neg"][aria-pressed="true"]{background:var(--bad-soft);border-color:var(--bad);color:var(--bad)}
 .choice[data-k="pos"][aria-pressed="true"]{background:var(--good-soft);border-color:var(--good);color:var(--good)}
+.choice[data-k="ingen"][aria-pressed="true"]{background:var(--line);border-color:var(--muted);color:var(--ink)}
 .choice[aria-pressed="true"] .c{color:inherit}
+.offer-name{display:grid;gap:6px;background:var(--offer-soft);border-radius:12px;padding:12px}
+.offer-name .label{color:var(--offer)}
+.field{width:100%;font:500 17px/1.3 "Barlow",system-ui,sans-serif;color:var(--ink);background:var(--surface);border:2px solid var(--line);border-radius:10px;padding:11px 12px}
+.field:focus{outline:none;border-color:var(--accent)}
+.offers{list-style:none;margin:0;padding:0;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.offers li{border-top:1px solid var(--line)}
+.offers li:first-child{border-top:0}
+.offers button{width:100%;text-align:left;display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:11px 12px}
+.offers .nm{font-weight:600}
+.offers .nm.none{color:var(--muted);font-weight:500;font-style:italic}
+.offers .when{grid-column:1;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.offers .chip{grid-row:1 / span 2;grid-column:2;align-self:center}
+.search{margin-bottom:10px}
 .hint{margin:0;color:var(--muted);font-size:14px}
 
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
@@ -132,6 +149,7 @@ section h2{font:700 20px/1 "Barlow Condensed",system-ui,sans-serif;text-transfor
 .chip{font:600 12px/1 "Barlow",system-ui,sans-serif;padding:5px 8px;border-radius:999px;background:var(--bg);color:var(--muted);border:1px solid var(--line)}
 .chip.offert{background:var(--offer-soft);color:var(--offer);border-color:transparent}
 .chip.ej,.chip.neg{background:var(--bad-soft);color:var(--bad);border-color:transparent}
+.chip.ingen{background:var(--line);color:var(--ink);border-color:transparent}
 .chip.pos{background:var(--good-soft);color:var(--good);border-color:transparent}
 .del{font-size:13px;color:var(--muted);padding:6px 8px;border-radius:8px}
 .del.armed{color:var(--bad);background:var(--bad-soft);font-weight:600}
@@ -191,9 +209,14 @@ body{margin:0;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(
     <div class="current-head"><strong id="curTitle">Ingen dörr än</strong><span id="curTime"></span></div>
     <div class="group">
       <span class="label">Utfall</span>
-      <div class="pair">
+      <div class="pair three">
         <button class="choice" type="button" data-f="outcome" data-k="offert" aria-pressed="false">Offert<span class="c" id="c-offert">0</span></button>
         <button class="choice" type="button" data-f="outcome" data-k="ej" aria-pressed="false">Inte intresserad<span class="c" id="c-ej">0</span></button>
+        <button class="choice" type="button" data-f="outcome" data-k="ingen" aria-pressed="false">Öppnade inte<span class="c" id="c-ingen">0</span></button>
+      </div>
+      <div class="offer-name" id="offerBox" hidden>
+        <label class="label" for="offerName">Namn på offerten</label>
+        <input class="field" id="offerName" type="text" autocomplete="off" autocapitalize="sentences" enterkeyhint="done" placeholder="T.ex. Andersson, Storgatan 12">
       </div>
     </div>
     <div class="group">
@@ -217,8 +240,8 @@ body{margin:0;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(
         <button type="button" id="v-all" aria-pressed="false">Alla dagar</button>
       </div>
     </div>
-    <div class="legend"><span><i style="background:var(--offer)"></i>Offert</span><span><i style="background:var(--bad)"></i>Inte intresserad</span></div>
-    <p class="hint">När du trycker Offert eller Inte intresserad sätts en pin där du står. Dra pinen, eller tryck på kartan, för att flytta den till rätt hus.</p>
+    <div class="legend"><span><i style="background:var(--offer)"></i>Offert</span><span><i style="background:var(--bad)"></i>Inte intresserad</span><span><i style="background:var(--muted)"></i>Öppnade inte</span></div>
+    <p class="hint">När du trycker Offert, Inte intresserad eller Öppnade inte sätts en pin där du står. Dra pinen, eller tryck på kartan, för att flytta den till rätt hus.</p>
   </section>
 
   <div class="stats" aria-label="Dagens siffror">
@@ -230,6 +253,12 @@ body{margin:0;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(
   <section>
     <h2>Dagens dörrar</h2>
     <ul class="log" id="log"></ul>
+  </section>
+
+  <section>
+    <h2>Offerter</h2>
+    <input class="field search" id="offerSearch" type="search" placeholder="Sök offert" aria-label="Sök bland offerter">
+    <ul class="offers" id="offers"></ul>
   </section>
 
   <section>
@@ -265,7 +294,7 @@ body{margin:0;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(
   try { days = JSON.parse(localStorage.getItem(LS) || "{}") || {}; } catch(e){ days = {}; }
   function today(){ if(!days[key]) days[key] = {date:key, visits:[]}; return days[key]; }
   function counts(d){
-    var c = {n:d.visits.length, offert:0, ej:0, pos:0, neg:0};
+    var c = {n:d.visits.length, offert:0, ej:0, ingen:0, pos:0, neg:0};
     d.visits.forEach(function(v){ if(v.outcome) c[v.outcome]++; if(v.mood) c[v.mood]++; });
     return c;
   }
@@ -278,7 +307,7 @@ body{margin:0;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(
 
   // ---------- Map ----------
   var map = null, pinLayer = null, meMarker = null, meCircle = null, centered = false;
-  var PIN = {offert:"var(--offer)", ej:"var(--bad)"};
+  var PIN = {offert:"var(--offer)", ej:"var(--bad)", ingen:"var(--muted)"};
   if(window.L){
     map = L.map("map", {zoomControl:true, attributionControl:true}).setView([59.3293, 18.0686], 12);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -317,7 +346,7 @@ body{margin:0;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(
         var txt = document.createElement("div");
         var dateLbl = isToday ? "" : new Date(k+"T12:00").toLocaleDateString("sv-SE",{day:"numeric",month:"short"})+" ";
         txt.innerHTML = "<strong></strong><br><span></span>";
-        txt.querySelector("strong").textContent = "Dörr "+(i+1)+" · "+LBL[v.outcome];
+        txt.querySelector("strong").textContent = "Dörr "+(i+1)+" · "+LBL[v.outcome] + (v.outcome === "offert" && v.offerName ? ": "+v.offerName : "");
         txt.querySelector("span").textContent = dateLbl + hm(v.t) + (v.mood ? " · "+LBL[v.mood]+" kund" : "");
         m.bindPopup(txt);
         if(isToday){
@@ -396,6 +425,7 @@ body{margin:0;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(
       if(map && v.loc) map.panTo([v.loc.lat, v.loc.lng]);
     }
     save(); render();
+    if(field === "outcome" && v.outcome === "offert" && !v.offerName) $("offerName").focus();
   }
 
   function removeVisit(id){
@@ -406,10 +436,10 @@ body{margin:0;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(
   }
 
   $("export").addEventListener("click", function(){
-    var rows = [["datum","tid","dorr","utfall","bemotande","lat","lng"]];
+    var rows = [["datum","tid","dorr","utfall","offertnamn","bemotande","lat","lng"]];
     Object.keys(days).sort().forEach(function(k){
       days[k].visits.forEach(function(v,i){
-        rows.push([k, hm(v.t), i+1, v.outcome ? LBL[v.outcome] : "", v.mood ? LBL[v.mood] : "",
+        rows.push([k, hm(v.t), i+1, v.outcome ? LBL[v.outcome] : "", v.outcome === "offert" ? (v.offerName || "") : "", v.mood ? LBL[v.mood] : "",
           v.loc ? v.loc.lat.toFixed(6) : "", v.loc ? v.loc.lng.toFixed(6) : ""]);
       });
     });
@@ -421,13 +451,13 @@ body{margin:0;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(
     setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
   });
 
-  var LBL = {offert:"Offert", ej:"Inte intresserad", pos:"Positiv", neg:"Negativ"};
+  var LBL = {offert:"Offert", ej:"Inte intresserad", ingen:"Öppnade inte", pos:"Positiv", neg:"Negativ"};
 
   function render(){
     var d = today(), c = counts(d);
     $("today").textContent = new Date().toLocaleDateString("sv-SE",{weekday:"long", day:"numeric", month:"long"});
     $("knockN").textContent = c.n;
-    ["offert","ej","pos","neg"].forEach(function(k){ $("c-"+k).textContent = c[k] + " idag"; });
+    ["offert","ej","ingen","pos","neg"].forEach(function(k){ $("c-"+k).textContent = c[k] + " idag"; });
 
     var idx = d.visits.findIndex(function(v){ return v.id === selId; });
     var v = idx >= 0 ? d.visits[idx] : null;
@@ -436,6 +466,11 @@ body{margin:0;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(
     document.querySelectorAll(".choice").forEach(function(b){
       b.setAttribute("aria-pressed", v && v[b.dataset.f] === b.dataset.k ? "true" : "false");
     });
+
+    var box = $("offerBox"), inp = $("offerName");
+    box.hidden = !(v && v.outcome === "offert");
+    if(v && document.activeElement !== inp) inp.value = v.offerName || "";
+    renderOffers();
 
     var moods = c.pos + c.neg, open = d.visits.filter(function(x){ return !x.outcome; }).length;
     $("s-rate").textContent = pct(c.offert, c.n);
@@ -459,7 +494,7 @@ body{margin:0;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(
       var no = document.createElement("span"); no.className = "no"; no.textContent = "#"+(i+1);
       var tm = document.createElement("time"); tm.textContent = hm(x.t);
       var ch = document.createElement("span"); ch.className = "chips";
-      [x.outcome, x.mood].forEach(function(k){ if(!k) return; var s = document.createElement("span"); s.className = "chip "+k; s.textContent = LBL[k]; ch.appendChild(s); });
+      [x.outcome, x.mood].forEach(function(k){ if(!k) return; var s = document.createElement("span"); s.className = "chip "+k; s.textContent = k === "offert" && x.offerName ? "Offert: "+x.offerName : LBL[k]; ch.appendChild(s); });
       if(!x.outcome && !x.mood){ var s = document.createElement("span"); s.className = "chip"; s.textContent = "Knackad"; ch.appendChild(s); }
       [no,tm,ch].forEach(function(el){ el.style.cursor = "pointer"; el.addEventListener("click", function(){
         selId = x.id; render();
@@ -493,6 +528,46 @@ body{margin:0;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(
 
     drawPins();
   }
+
+  function renderOffers(){
+    var q = $("offerSearch").value.trim().toLowerCase();
+    var list = [];
+    Object.keys(days).forEach(function(k){
+      days[k].visits.forEach(function(v, i){ if(v.outcome === "offert") list.push({k:k, v:v, i:i}); });
+    });
+    list.sort(function(a,b){ return b.v.t - a.v.t; });
+    if(q) list = list.filter(function(o){ return (o.v.offerName || "").toLowerCase().indexOf(q) >= 0; });
+    var ul = $("offers"); ul.textContent = "";
+    if(!list.length){
+      var e = document.createElement("li"); e.className = "empty";
+      e.textContent = q ? "Ingen offert matchar sökningen." : "Inga offerter än. När du trycker Offert kan du skriva in ett namn, och då hamnar den här.";
+      ul.appendChild(e); return;
+    }
+    list.forEach(function(o){
+      var li = document.createElement("li");
+      var b = document.createElement("button"); b.type = "button";
+      var nm = document.createElement("span"); nm.className = "nm" + (o.v.offerName ? "" : " none");
+      nm.textContent = o.v.offerName || "Namnlös offert";
+      var when = document.createElement("span"); when.className = "when";
+      when.textContent = new Date(o.k+"T12:00").toLocaleDateString("sv-SE",{weekday:"short", day:"numeric", month:"short"}) + " " + hm(o.v.t) + " · dörr " + (o.i+1);
+      b.append(nm, when);
+      if(o.v.mood){ var ch = document.createElement("span"); ch.className = "chip "+o.v.mood; ch.textContent = LBL[o.v.mood]; b.appendChild(ch); }
+      b.addEventListener("click", function(){
+        if(o.k === key){ selId = o.v.id; render(); window.scrollTo({top:0, behavior:"smooth"}); }
+        else if(!showAll) setView(true);
+        if(map && o.v.loc) map.setView([o.v.loc.lat, o.v.loc.lng], Math.max(map.getZoom(), 17));
+        if(o.k !== key) $("map").scrollIntoView({behavior:"smooth", block:"center"});
+      });
+      li.appendChild(b); ul.appendChild(li);
+    });
+  }
+  $("offerSearch").addEventListener("input", renderOffers);
+  $("offerName").addEventListener("input", function(){
+    var v = selected(); if(!v || v.outcome !== "offert") return;
+    v.offerName = this.value;
+    save(); render();
+  });
+  $("offerName").addEventListener("keydown", function(e){ if(e.key === "Enter") this.blur(); });
 
   $("knock").addEventListener("click", knock);
   document.querySelectorAll(".choice").forEach(function(b){ b.addEventListener("click", function(){ choose(b.dataset.f, b.dataset.k); }); });
